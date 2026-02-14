@@ -136,12 +136,3 @@ Thanks to the authors of "Evolutionary-scale prediction of atomic level protein 
 with a language model".
 
 `ESM Metagenomic Atlas <https://esmatlas.com/explore>`__
-
------------
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Nomic Atlas Examples
-
-   nomic_atlas_umap_of_text_embeddings
-   nomic_atlas_visualizing_mnist_training_dynamics
