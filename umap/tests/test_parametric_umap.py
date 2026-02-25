@@ -143,3 +143,18 @@ def test_validation(moon_dataset):
 #         decimal=5,
 #         err_msg="Loaded model transform fails to match original embedding",
 #     )
+
+
+@tf_only
+def test_landmark_retraining_no_nan():
+    """Retrain with landmarks should not produce NaN loss."""
+    from sklearn.datasets import load_digits
+
+    X, y = load_digits(return_X_y=True)
+    x1, x2 = X[y != 9], X[y == 9]
+    p = ParametricUMAP(n_epochs=50)
+    p.fit(x1)
+    p.add_landmarks(x1, sample_pct=0.05, landmark_loss_weight=0.01)
+    p.fit(x2)
+    assert not np.any(np.isnan(p._history["loss"][-5:]))
+    assert p.parametric_model.landmark_loss_weight == 0.01
