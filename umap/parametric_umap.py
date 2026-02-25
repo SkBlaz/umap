@@ -426,6 +426,12 @@ class ParametricUMAP(UMAP):
         else:
             validation_data = None
 
+        # Make sure landmmark params are propagated correctly to the parametric model
+        if self.parametric_model is not None:
+            self.parametric_model.landmark_loss_weight = self.landmark_loss_weight
+            if self.landmark_loss_fn is not None:
+                self.parametric_model.landmark_loss_fn = self.landmark_loss_fn
+
         # create embedding
         history = self.parametric_model.fit(
             edge_dataset,
@@ -561,8 +567,8 @@ class ParametricUMAP(UMAP):
         # It is good practice to re-initialise the optimizer when adding landmarks.
         #
         if reset_optimizer:
-            self.optimizer = keras.optimizers.Adam(1e-3, clipvalue=4.0)
-            self.parametric_model.compile(optimizer=optimizer)
+            if self.parametric_model is not None and self.parametric_model.optimizer is not None:
+                self.parametric_model.optimizer.build(self.parametric_model.trainable_variables)
 
     def remove_landmarks(self):
         self.prev_epoch_X = None
@@ -1096,8 +1102,11 @@ class StopGradient(keras.layers.Layer):
 
 def _default_landmark_loss(y, y_pred):
     # Euclidean distance between points.
+    # Use sqrt(sum_sq + eps) instead of norm to avoid NaN gradient at zero.
     # Relu activation smooths gradients.
-    return keras.activations.relu(ops.mean(ops.norm(y_pred - y, axis=1)))
+    sq_diff = ops.sum((y_pred - y) ** 2, axis=1)
+    safe_dist = ops.sqrt(sq_diff + 1e-10)
+    return keras.activations.relu(ops.mean(safe_dist))
 
 
 class UMAPModel(keras.Model):
@@ -1282,20 +1291,23 @@ class UMAPModel(keras.Model):
     def _landmark_loss(self, y, y_pred):
         y_to = y["landmark_to"]
 
-        # Euclidean distance between y and y_pred, ignoring nans.
-        # Before computing difference, replace all predicted and
-        # landmark embeddings with 0 if there isn't a landmark.
-        clean_y_pred_to = ops.where(
-            ops.isnan(y_to),
-            x1=ops.zeros_like(y_pred["embedding_to"]),
-            x2=y_pred["embedding_to"],
-        )
-        clean_y_to = ops.where(ops.isnan(y_to), x1=ops.zeros_like(y_to), x2=y_to)
+        # make a mask for landmark points
+        is_landmark = ~ops.any(ops.isnan(y_to), axis=1)
 
-        return (
-            self.landmark_loss_fn(clean_y_to, clean_y_pred_to)
-            * self.landmark_loss_weight
+        # Boolean-index to select only landmark entries
+        landmark_pred = y_pred["embedding_to"][is_landmark]
+        landmark_target = y_to[is_landmark]
+
+        # Make sure there are landmarks in this batch - 
+        # otherwise we get nans from the mean of an empty tensor.
+        n_landmarks = ops.sum(ops.cast(is_landmark, "int32"))
+        loss = tf.cond(
+            n_landmarks > 0,
+            lambda: self.landmark_loss_fn(landmark_target, landmark_pred),
+            lambda: 0.0,
         )
+
+        return loss * self.landmark_loss_weight
 
 
 ##################################################
