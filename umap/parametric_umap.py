@@ -12,16 +12,14 @@ try:
     # Used for tf.data.
     import tensorflow as tf
 except ImportError:
-    warn(
-        """The umap.parametric_umap package requires Tensorflow > 2.0 to be installed.
+    warn("""The umap.parametric_umap package requires Tensorflow > 2.0 to be installed.
     You can install Tensorflow at https://www.tensorflow.org/install
     
     or you can install the CPU version of Tensorflow using 
 
     pip install umap-learn[parametric_umap]
 
-    """
-    )
+    """)
     raise ImportError("umap.parametric_umap requires Tensorflow >= 2.0") from None
 
 try:
@@ -188,17 +186,13 @@ class ParametricUMAP(UMAP):
             len_X = len(X)
             len_land = len(landmark_positions)
             if len_X != len_land:
-                raise ValueError(
-                    f"Length of x = {len_X}, length of landmark_positions \
-                    = {len_land}, while it must be equal."
-                )
+                raise ValueError(f"Length of x = {len_X}, length of landmark_positions \
+                    = {len_land}, while it must be equal.")
 
         if self.metric == "precomputed":
             if precomputed_distances is None:
-                raise ValueError(
-                    "Precomputed distances must be supplied if metric \
-                    is precomputed."
-                )
+                raise ValueError("Precomputed distances must be supplied if metric \
+                    is precomputed.")
             # prepare X for training the network
             self._X = X
             # geneate the graph on precomputed distances
@@ -251,17 +245,13 @@ class ParametricUMAP(UMAP):
             len_X = len(X)
             len_land = len(landmark_positions)
             if len_X != len_land:
-                raise ValueError(
-                    f"Length of x = {len_X}, length of landmark_positions \
-                    = {len_land}, while it must be equal."
-                )
+                raise ValueError(f"Length of x = {len_X}, length of landmark_positions \
+                    = {len_land}, while it must be equal.")
 
         if self.metric == "precomputed":
             if precomputed_distances is None:
-                raise ValueError(
-                    "Precomputed distances must be supplied if metric \
-                    is precomputed."
-                )
+                raise ValueError("Precomputed distances must be supplied if metric \
+                    is precomputed.")
             # prepare X for training the network
             self._X = X
             # generate the graph on precomputed distances
@@ -567,8 +557,13 @@ class ParametricUMAP(UMAP):
         # It is good practice to re-initialise the optimizer when adding landmarks.
         #
         if reset_optimizer:
-            if self.parametric_model is not None and self.parametric_model.optimizer is not None:
-                self.parametric_model.optimizer.build(self.parametric_model.trainable_variables)
+            if (
+                self.parametric_model is not None
+                and self.parametric_model.optimizer is not None
+            ):
+                self.parametric_model.optimizer.build(
+                    self.parametric_model.trainable_variables
+                )
 
     def remove_landmarks(self):
         self.prev_epoch_X = None
@@ -1246,7 +1241,7 @@ class UMAPModel(keras.Model):
         )
 
         # compute cross entropy
-        (attraction_loss, repellant_loss, ce_loss) = compute_cross_entropy(
+        attraction_loss, repellant_loss, ce_loss = compute_cross_entropy(
             probabilities_graph,
             log_probabilities_distance,
             repulsion_strength=repulsion_strength,
@@ -1298,7 +1293,7 @@ class UMAPModel(keras.Model):
         landmark_pred = y_pred["embedding_to"][is_landmark]
         landmark_target = y_to[is_landmark]
 
-        # Make sure there are landmarks in this batch - 
+        # Make sure there are landmarks in this batch -
         # otherwise we get nans from the mean of an empty tensor.
         n_landmarks = ops.sum(ops.cast(is_landmark, "int32"))
         loss = tf.cond(
